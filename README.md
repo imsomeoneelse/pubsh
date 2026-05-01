@@ -4,10 +4,10 @@ Encrypt HTML and publish it to S3-compatible storage. Comes with a terminal
 CLI and an MCP server so AI tools (Claude Desktop, Claude Code, Cursor, …)
 can publish, update, and download dashboards as first-class tools.
 
-The encrypted page is a self-contained HTML file (powered by
-[staticrypt](https://github.com/robinmoisson/staticrypt)) — anyone with the
-URL **and** the password can open it in a browser; without the password the
-file is just opaque ciphertext.
+The encrypted page is a self-contained HTML file (PBKDF2 + AES-CBC + HMAC,
+runtime borrowed from [staticrypt](https://github.com/robinmoisson/staticrypt)) —
+anyone with the URL **and** the password can open it in a browser; without
+the password the file is just opaque ciphertext.
 
 ## Architecture
 
@@ -60,17 +60,18 @@ Configuration is layered (later wins): `~/.config/pubsh/config.json` →
 
 ## MCP server (AI tool integration)
 
-`@pubsh/mcp` exposes the same six operations (`publish`, `list`, `info`,
-`update`, `download`, `delete`) as MCP tools. See
-[packages/mcp/README.md](packages/mcp/README.md) for full host config. TL;DR
-for Claude Desktop:
+`pubsh-mcp` exposes the same six operations (`publish`, `list`, `info`,
+`update`, `download`, `delete`) as MCP tools. The published package is a
+single self-contained binary — no clone required. See
+[packages/mcp/README.md](packages/mcp/README.md) for the full host config.
+TL;DR for Claude Desktop:
 
 ```jsonc
 {
   "mcpServers": {
     "pubsh": {
-      "command": "node",
-      "args": ["/absolute/path/to/pubsh/packages/mcp/dist/bin.js"],
+      "command": "npx",
+      "args": ["-y", "pubsh-mcp"],
       "env": {
         "PUBSH_S3_ENDPOINT": "https://storage.yandexcloud.net",
         "PUBSH_S3_REGION": "ru-central1",
@@ -96,9 +97,6 @@ same password).
 pnpm test                                  # all packages, vitest run
 pnpm --filter @pubsh/core test:watch       # core only, watch mode
 ```
-
-Today: 192 tests across `core` (103), `cli` (39), `mcp` (50). Both build
-and tests are clean.
 
 ## License
 

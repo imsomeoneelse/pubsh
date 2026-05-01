@@ -11,11 +11,15 @@
   "scripts": {
     "build": "tsc -b",
     "build:clean": "tsc -b --clean",
+    "build:bundle": "pnpm --filter pubsh-mcp build",
+    "build:all": "pnpm build && pnpm build:bundle",
     "watch": "tsc -b --watch",
     "test": "pnpm -r --parallel test",
     "lint": "pnpm -r --parallel lint",
     "cli": "node packages/cli/dist/index.js",
-    "mcp": "node packages/mcp/dist/bin.js"
+    "mcp": "node packages/mcp/dist/bin.js",
+    "release:check": "pnpm test && pnpm build:all && pnpm --filter pubsh-mcp pack:check",
+    "release:publish": "pnpm --filter pubsh-mcp publish:npm"
   },
   "devDependencies": {
     "@types/node": "22.19.17",
