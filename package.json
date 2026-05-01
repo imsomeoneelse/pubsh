@@ -1,0 +1,25 @@
+{
+  "name": "pubsh-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source CLI for encrypting HTML and publishing to S3, with MCP wrapper for AI tools",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "build:clean": "tsc -b --clean",
+    "watch": "tsc -b --watch",
+    "test": "pnpm -r --parallel test",
+    "lint": "pnpm -r --parallel lint",
+    "cli": "node packages/cli/dist/index.js",
+    "mcp": "node packages/mcp/dist/bin.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.17",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}
