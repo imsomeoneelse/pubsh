@@ -1,33 +1,58 @@
 {
-  "name": "@pubsh/mcp",
+  "name": "pubsh-mcp",
   "version": "0.0.1",
-  "description": "MCP server wrapper around @pubsh/core",
+  "description": "MCP server for pubsh — encrypt HTML and publish it to S3 from any AI host (Claude Desktop, Claude Code, Cursor, …)",
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "bin": {
     "pubsh-mcp": "./dist/bin.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imsomeoneelse/pubsh.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/imsomeoneelse/pubsh#readme",
+  "bugs": {
+    "url": "https://github.com/imsomeoneelse/pubsh/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-desktop",
+    "claude-code",
+    "cursor",
+    "s3",
+    "encryption",
+    "staticrypt",
+    "publishing"
+  ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsup",
+    "build:types": "tsc -b",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "pack:check": "npm pack --dry-run",
+    "publish:npm": "npm publish --access public",
+    "prepublishOnly": "pnpm --dir ../.. run build && pnpm build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@pubsh/core": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1039.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@pubsh/core": "workspace:*",
     "@types/node": "22.19.17",
+    "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "vitest": "2.1.9"
   }

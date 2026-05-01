@@ -1,8 +1,20 @@
-# @pubsh/mcp
+# pubsh-mcp
 
-MCP (Model Context Protocol) server for [pubsh](https://github.com/anthropics/pubsh):
-exposes the publication lifecycle as tools that LLM hosts (Claude Desktop,
-Claude Code, Cursor, etc.) can call.
+MCP (Model Context Protocol) server for [pubsh](https://github.com/imsomeoneelse/pubsh):
+encrypt HTML and publish it to S3-compatible storage from any AI host —
+Claude Desktop, Claude Code, Cursor, and anything else that speaks MCP over
+stdio.
+
+## Install
+
+The published package is a single bundled binary; no clone, no build step.
+
+```bash
+npx -y pubsh-mcp     # one-off run, used by mcpServers configs
+npm i -g pubsh-mcp   # or install globally for `pubsh-mcp` on PATH
+```
+
+Requires **Node.js ≥ 20**.
 
 ## Tools
 
@@ -19,9 +31,26 @@ All tool errors come back as `{ isError: true, content: [{ type: "text", text: "
 so the model can read the message and react. `PubshError`s from the core
 service are formatted with their `code` (e.g. `[NOT_FOUND]`, `[INVALID_ID]`).
 
+## Configure
+
+`pubsh-mcp` reads configuration **only** from the environment — no
+`~/.config/pubsh/config.json`, no project files. The host owns the secrets.
+
+| Variable                      | Required | Purpose                                                                  |
+| ----------------------------- | -------- | ------------------------------------------------------------------------ |
+| `PUBSH_S3_ENDPOINT`           | yes      | S3 API endpoint (e.g. `https://storage.yandexcloud.net`)                 |
+| `PUBSH_S3_REGION`             | yes      | S3 region                                                                |
+| `PUBSH_S3_ACCESS_KEY_ID`      | yes      | S3 access key                                                            |
+| `PUBSH_S3_SECRET_ACCESS_KEY`  | yes      | S3 secret                                                                |
+| `PUBSH_S3_PUBLIC_BUCKET`      | yes      | bucket where encrypted HTML is uploaded                                  |
+| `PUBSH_S3_PRIVATE_BUCKET`     | yes      | bucket where the password sidecar is stored                              |
+| `PUBSH_DOWNLOAD_DIR`          | no       | where `download` writes decrypted HTML (default: `os.tmpdir()/pubsh-dashboards`) |
+| `PUBSH_TEMPLATE_PATH`         | no       | absolute path to a custom staticrypt wrapper template                    |
+| `PUBSH_DEBUG`                 | no       | `1` prints stack traces on stderr                                        |
+
 ## Running it
 
-### Standalone (stdio) — Claude Desktop
+### Claude Desktop
 
 Claude Desktop's built-in filesystem tool already has read/write access to
 `~/Claude/`. Point `PUBSH_DOWNLOAD_DIR` somewhere under that root and you
@@ -32,22 +61,15 @@ will be able to read/edit the decrypted HTML out of the box.
 {
   "mcpServers": {
     "pubsh": {
-      "command": "node",
-      "args": ["/Users/me/Sources/pubsh/packages/mcp/dist/bin.js"],
+      "command": "npx",
+      "args": ["-y", "pubsh-mcp"],
       "env": {
-        // S3 (required)
         "PUBSH_S3_ENDPOINT": "https://storage.yandexcloud.net",
         "PUBSH_S3_REGION": "ru-central1",
         "PUBSH_S3_ACCESS_KEY_ID": "...",
         "PUBSH_S3_SECRET_ACCESS_KEY": "...",
         "PUBSH_S3_PUBLIC_BUCKET": "...",
         "PUBSH_S3_PRIVATE_BUCKET": "...",
-
-        // optional: custom staticrypt wrapper template
-        "PUBSH_TEMPLATE_PATH": "/Users/me/Sources/pubsh/templates/my-pass.html",
-
-        // download dir under ~/Claude/ → readable by Claude Desktop's
-        // built-in filesystem tool, no extra MCP needed.
         "PUBSH_DOWNLOAD_DIR": "/Users/me/Claude/pubsh-dashboards"
       }
     }
@@ -55,19 +77,23 @@ will be able to read/edit the decrypted HTML out of the box.
 }
 ```
 
-`command: "node"` + absolute path to `dist/bin.js` works for local dev
-against a built tree. Once published, `command: "pubsh-mcp"` is enough.
+### Claude Code
 
-`bin.ts` reads configuration **only** from the environment — no
-`~/.config/pubsh/config.json`, no project files. The host owns the secrets.
+```bash
+claude mcp add pubsh -- npx -y pubsh-mcp \
+  --env PUBSH_S3_ENDPOINT=https://storage.yandexcloud.net \
+  --env PUBSH_S3_REGION=ru-central1 \
+  --env PUBSH_S3_ACCESS_KEY_ID=... \
+  --env PUBSH_S3_SECRET_ACCESS_KEY=... \
+  --env PUBSH_S3_PUBLIC_BUCKET=... \
+  --env PUBSH_S3_PRIVATE_BUCKET=... \
+  --env PUBSH_DOWNLOAD_DIR=/Users/me/Documents/pubsh-dashboards
+```
 
-Set `PUBSH_DEBUG=1` to print stack traces on stderr.
+### Cursor / other hosts (no built-in filesystem)
 
-### Standalone (stdio) — other hosts
-
-For Claude Code, Cursor, or any host without built-in filesystem access to
-the download dir, add a sibling [filesystem-MCP][fs] server pointed at the
-**same** path as `PUBSH_DOWNLOAD_DIR`:
+Add a sibling [filesystem-MCP][fs] server pointed at the **same** path as
+`PUBSH_DOWNLOAD_DIR`:
 
 [fs]: https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
 
@@ -75,9 +101,10 @@ the download dir, add a sibling [filesystem-MCP][fs] server pointed at the
 {
   "mcpServers": {
     "pubsh": {
-      "command": "pubsh-mcp",
+      "command": "npx",
+      "args": ["-y", "pubsh-mcp"],
       "env": {
-        /* …S3 + template envs… */
+        /* …S3 + download dir envs… */
         "PUBSH_DOWNLOAD_DIR": "/Users/me/Documents/pubsh-dashboards"
       }
     },
@@ -105,22 +132,15 @@ allowed roots).
 4. `pubsh.update({ id, source: '<PUBSH_DOWNLOAD_DIR>/<id>.html' })` —
    re-publishes; same URL, same password.
 
-### Embedded
+## Local dev
 
-```ts
-import { startMcpServer } from "@pubsh/mcp";
+To run from a checked-out tree instead of the published bundle:
 
-const running = await startMcpServer({
-  config,                          // a fully-validated @pubsh/core Config
-  transport: { kind: "stdio" },
-});
-
-// later, when the host process is shutting down:
-await running.close();
+```bash
+pnpm install
+pnpm --filter pubsh-mcp build      # tsup → dist/bin.js
+node packages/mcp/dist/bin.js
 ```
-
-`startMcpServer` returns a handle with the underlying `McpServer` and an
-async `close()` for graceful shutdown.
 
 ## Transport support
 
