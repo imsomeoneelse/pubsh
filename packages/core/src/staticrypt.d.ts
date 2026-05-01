@@ -1,4 +1,8 @@
-// staticrypt ships no .d.ts files. We declare only the lib subpaths we use.
+// staticrypt ships no .d.ts files. We declare only the lib subpaths we use
+// at runtime (server-side encrypt / decrypt). The browser-runtime JS and the
+// password template are baked in at build time via
+// scripts/generate-staticrypt-assets.mjs, so cli/helpers and formater are no
+// longer imported from this codebase.
 
 declare module "staticrypt/lib/cryptoEngine.js" {
   export function hashPassword(password: string, salt: string): Promise<string>;
@@ -18,15 +22,4 @@ declare module "staticrypt/lib/codec.js" {
   }
 
   export function init(engine: typeof CryptoEngine): Codec;
-}
-
-declare module "staticrypt/lib/formater.js" {
-  export function renderTemplate(
-    template: string,
-    data: Record<string, unknown>,
-  ): string;
-}
-
-declare module "staticrypt/cli/helpers.js" {
-  export function buildStaticryptJS(): string;
 }

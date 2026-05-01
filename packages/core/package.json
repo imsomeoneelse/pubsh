@@ -25,9 +25,10 @@
     }
   },
   "files": ["dist", "README.md"],
-  "//files-note": "no `templates/` — stock template comes from staticrypt; user templates are passed in via config/CLI flag.",
+  "//files-note": "stock wrapper template + runtime JS are baked into src/staticrypt-assets.generated.ts at build time; user templates are passed in via config/CLI flag.",
   "scripts": {
     "build": "tsc -b",
+    "gen:assets": "node scripts/generate-staticrypt-assets.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

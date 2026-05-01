@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { createRequire } from "node:module";
 import * as cryptoEngine from "staticrypt/lib/cryptoEngine.js";
 import * as codecModule from "staticrypt/lib/codec.js";
-import { renderTemplate } from "staticrypt/lib/formater.js";
-import { buildStaticryptJS } from "staticrypt/cli/helpers.js";
+import {
+  STATICRYPT_PASSWORD_TEMPLATE,
+  STATICRYPT_RUNTIME_JS,
+} from "./staticrypt-assets.generated.js";
 import type { EncryptionConfig } from "./types.js";
 import { CryptoError } from "./errors.js";
 
@@ -38,13 +38,6 @@ export interface Encryptor {
 
 const codec = codecModule.init(cryptoEngine);
 
-/** staticrypt ships a stock English-language wrapper template — that's our default. */
-function defaultTemplatePath(): string {
-  const require = createRequire(import.meta.url);
-  const staticryptPkg = require.resolve("staticrypt/package.json");
-  return resolve(dirname(staticryptPkg), "lib/password_template.html");
-}
-
 // Defaults mirror staticrypt CLI flag defaults (cli/helpers.js, see
 // `parseCommandLineArguments`). Kept here so we don't depend on the CLI
 // surface — only on the lib functions.
@@ -65,9 +58,10 @@ export class StaticryptEncryptor implements Encryptor {
   constructor(private readonly config: EncryptionConfig) {}
 
   async encrypt(input: EncryptInput): Promise<EncryptResult> {
-    const templatePath =
-      input.templatePath ?? this.config.templatePath ?? defaultTemplatePath();
-    const templateContents = readTemplate(templatePath);
+    const overridePath = input.templatePath ?? this.config.templatePath;
+    const templateContents = overridePath
+      ? readTemplate(overridePath)
+      : STATICRYPT_PASSWORD_TEMPLATE;
 
     const salt = cryptoEngine.generateRandomSalt();
     const hashedPassword = await cryptoEngine.hashPassword(input.password, salt);
@@ -87,7 +81,7 @@ export class StaticryptEncryptor implements Encryptor {
     const rendered = renderTemplate(templateContents, {
       ...TEMPLATE_DEFAULTS,
       is_remember_enabled: JSON.stringify(isRememberEnabled),
-      js_staticrypt: buildStaticryptJS(),
+      js_staticrypt: STATICRYPT_RUNTIME_JS,
       staticrypt_config: staticryptConfig,
     });
 
@@ -142,6 +136,23 @@ function readTemplate(path: string): string {
       err,
     );
   }
+}
+
+// Tiny replacement for staticrypt/lib/formater.js — substitutes /*[|key|]*/0
+// placeholders. Inlined to drop one more cross-package dependency edge.
+function renderTemplate(
+  templateString: string,
+  data: Record<string, unknown>,
+): string {
+  return templateString.replace(
+    /\/\*\[\|\s*(\w+)\s*\|]\*\/\s*0/g,
+    (_, key: string) => {
+      const value = data[key];
+      if (value === undefined) return key;
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    },
+  );
 }
 
 export function createDefaultEncryptor(config: EncryptionConfig): Encryptor {
